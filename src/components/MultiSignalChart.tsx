@@ -6,17 +6,18 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ReferenceLine,
-  Legend
+  Legend,
+  ReferenceLine
 } from 'recharts';
 import type { SensorData } from '../types';
 
 interface MultiSignalChartProps {
   data: SensorData[];
+  markers?: { timestamp: number; type: string }[];
   height?: string;
 }
 
-export function MultiSignalChart({ data, height = 'h-[400px]' }: MultiSignalChartProps) {
+export function MultiSignalChart({ data, markers = [], height = 'h-[400px]' }: MultiSignalChartProps) {
   const formatTime = (timestamp: any) => {
     if (!timestamp || isNaN(Number(timestamp))) return '';
     return new Date(Number(timestamp)).toLocaleTimeString([], { hour12: false, minute: '2-digit', second: '2-digit' });
@@ -50,14 +51,14 @@ export function MultiSignalChart({ data, height = 'h-[400px]' }: MultiSignalChar
               label={{ value: 'GSR (μS)', angle: -90, position: 'insideLeft', style: { fill: '#2563eb' } }}
             />
             
-            {/* Secondary Y-Axis (Heart Rate & Blood Pressure - typical range 50-150) */}
+            {/* Secondary Y-Axis (Heart Rate & Temperature) */}
             <YAxis 
               yAxisId="hr_bp" 
               orientation="right" 
               stroke="#ef4444" 
               fontSize={12} 
-              domain={[40, 160]}
-              label={{ value: 'HR / BP', angle: 90, position: 'insideRight', style: { fill: '#ef4444' } }}
+              domain={['auto', 'auto']}
+              label={{ value: 'HR / Temp', angle: 90, position: 'insideRight', style: { fill: '#ef4444' } }}
             />
 
             <Tooltip 
@@ -66,6 +67,16 @@ export function MultiSignalChart({ data, height = 'h-[400px]' }: MultiSignalChar
             />
             
             <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
+
+            {markers.map((marker) => (
+              <ReferenceLine
+                key={`${marker.type}-${marker.timestamp}`}
+                x={marker.timestamp}
+                stroke="#2563eb"
+                strokeDasharray="4 4"
+                label={{ value: marker.type, position: 'top', fill: '#2563eb', fontSize: 10 }}
+              />
+            ))}
 
             {/* Signal Lines */}
             <Line 
@@ -91,29 +102,14 @@ export function MultiSignalChart({ data, height = 'h-[400px]' }: MultiSignalChar
             />
             <Line 
               yAxisId="hr_bp"
-              type="stepAfter" 
-              dataKey="systolic" 
-              name="Systolic BP"
-              stroke="#8b5cf6" 
+              type="monotone" 
+              dataKey="temperature" 
+              name="Body Temperature"
+              stroke="#f59e0b" 
               strokeWidth={2} 
-              strokeDasharray="4 4"
               dot={false} 
               isAnimationActive={false} 
             />
-            <Line 
-              yAxisId="hr_bp"
-              type="stepAfter" 
-              dataKey="diastolic" 
-              name="Diastolic BP"
-              stroke="#14b8a6" 
-              strokeWidth={2} 
-              strokeDasharray="4 4"
-              dot={false} 
-              isAnimationActive={false} 
-            />
-
-            {/* Example of a baseline reference */}
-            <ReferenceLine yAxisId="hr_bp" y={100} stroke="#fca5a5" strokeDasharray="3 3" />
             
           </LineChart>
         </ResponsiveContainer>

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthLayout } from './layouts/AuthLayout';
 import { PageLayout } from './layouts/PageLayout';
 
@@ -21,40 +21,69 @@ import { PatientDetail } from './pages/patients/PatientDetail';
 
 import { DeviceList } from './pages/devices/DeviceList';
 import { AddDevice } from './pages/devices/AddDevice';
+import { hasSession } from './services/authSession';
+import { AdminPanel } from './pages/admin/AdminPanel';
+import { AccountSettings } from './pages/settings/Account';
+import { ToastProvider } from './components/Toast';
+
+function RequireAuth({ children }: { children: JSX.Element }) {
+  const location = useLocation();
+  if (!hasSession()) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+  return children;
+}
+
+function RedirectIfAuth({ children }: { children: JSX.Element }) {
+  if (hasSession()) {
+    return <Navigate to="/dashboard/live-monitoring" replace />;
+  }
+  return children;
+}
 
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Auth Routes */}
-        <Route element={<AuthLayout />}>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-        </Route>
+      <ToastProvider>
+        <Routes>
+          {/* Auth Routes */}
+          <Route element={<AuthLayout />}>
+            <Route path="/login" element={<RedirectIfAuth><Login /></RedirectIfAuth>} />
+            <Route path="/register" element={<RedirectIfAuth><Register /></RedirectIfAuth>} />
+            <Route path="/forgot-password" element={<RedirectIfAuth><ForgotPassword /></RedirectIfAuth>} />
+            <Route path="/reset-password" element={<RedirectIfAuth><ResetPassword /></RedirectIfAuth>} />
+          </Route>
 
-        {/* Dashboard Routes */}
-        <Route element={<PageLayout />}>
-          <Route path="/" element={<Navigate to="/dashboard/live-monitoring" replace />} />
-          
-          <Route path="/dashboard/live-monitoring" element={<LiveMonitoring />} />
-          <Route path="/dashboard/patient-sessions" element={<PatientSessions />} />
-          <Route path="/dashboard/research-analytics" element={<ResearchAnalytics />} />
-          <Route path="/dashboard/reporting" element={<Reporting />} />
-          <Route path="/dashboard/device-management" element={<DeviceManagement />} />
-          <Route path="/dashboard/calibration" element={<Calibration />} />
+          {/* Dashboard Routes */}
+          <Route element={<RequireAuth><PageLayout /></RequireAuth>}>
+            <Route path="/" element={<Navigate to="/dashboard/live-monitoring" replace />} />
+            
+            <Route path="/dashboard/live-monitoring" element={<LiveMonitoring />} />
+            <Route path="/dashboard/patient-sessions" element={<PatientSessions />} />
+            <Route path="/dashboard/research-analytics" element={<ResearchAnalytics />} />
+            <Route path="/dashboard/reporting" element={<Reporting />} />
+            <Route path="/dashboard/device-management" element={<DeviceManagement />} />
+            <Route path="/dashboard/calibration" element={<Calibration />} />
 
-          {/* Patient Routes */}
-          <Route path="/patients" element={<PatientList />} />
-          <Route path="/patients/new" element={<NewPatient />} />
-          <Route path="/patients/:id" element={<PatientDetail />} />
+            {/* Patient Routes */}
+            <Route path="/patients" element={<PatientList />} />
+            <Route path="/patients/new" element={<NewPatient />} />
+            <Route path="/patients/:id" element={<PatientDetail />} />
 
-          {/* Device Routes */}
-          <Route path="/devices" element={<DeviceList />} />
-          <Route path="/devices/new" element={<AddDevice />} />
-        </Route>
-      </Routes>
+            {/* Device Routes */}
+            <Route path="/devices" element={<DeviceList />} />
+            <Route path="/devices/new" element={<AddDevice />} />
+
+            {/* Admin */}
+            <Route path="/admin" element={<AdminPanel />} />
+
+            {/* Settings */}
+            <Route path="/settings/account" element={<AccountSettings />} />
+          </Route>
+
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </ToastProvider>
     </BrowserRouter>
   );
 }

@@ -1,7 +1,45 @@
+import { useState, type FormEvent } from 'react';
 import { Card } from '../../components/Card';
-import { Server, Cpu, Wifi } from 'lucide-react';
+import { Server, Cpu } from 'lucide-react';
+import { registerDevice } from '../../services/deviceService';
+import { useToast } from '../../components/Toast';
 
 export function AddDevice() {
+  const [deviceId, setDeviceId] = useState('');
+  const [deviceName, setDeviceName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { addToast } = useToast();
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    
+
+    const trimmedId = deviceId.trim();
+    if (!trimmedId) {
+      setError('Please enter a device ID.');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await registerDevice({
+        deviceId: trimmedId,
+        deviceName: deviceName.trim() || undefined,
+      });
+      addToast('Device registered successfully.', 'success');
+      setDeviceId('');
+      setDeviceName('');
+    } catch (submitError) {
+      console.error('Failed to register device', submitError);
+      setError('Failed to register device. Make sure the device ID is provisioned.');
+      addToast('Failed to register device. Make sure the device ID is provisioned.', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="sm:flex sm:items-center sm:justify-between">
@@ -14,7 +52,12 @@ export function AddDevice() {
       </div>
 
       <Card className="p-6">
-        <form className="space-y-6">
+        <form className="space-y-6" onSubmit={handleSubmit}>
+          {error ? (
+            <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          ) : null}
           <div className="grid grid-cols-1 gap-y-6 gap-x-6 sm:grid-cols-6">
             
             <div className="sm:col-span-6">
@@ -30,6 +73,8 @@ export function AddDevice() {
                   name="device-id"
                   id="device-id"
                   placeholder="e.g. ESP32-A1-B2-C3"
+                  value={deviceId}
+                  onChange={(event) => setDeviceId(event.target.value)}
                   className="block w-full font-mono rounded-md border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-medical-blue sm:text-sm sm:leading-6"
                 />
               </div>
@@ -48,30 +93,13 @@ export function AddDevice() {
                   name="device-name"
                   id="device-name"
                   placeholder="e.g. Chair 3 Monitor"
+                  value={deviceName}
+                  onChange={(event) => setDeviceName(event.target.value)}
                   className="block w-full rounded-md border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-medical-blue sm:text-sm sm:leading-6"
                 />
               </div>
             </div>
 
-            <div className="sm:col-span-6">
-              <label htmlFor="protocol" className="block text-sm font-medium leading-6 text-gray-900">
-                Connection Protocol
-              </label>
-              <div className="relative mt-2">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <Wifi className="h-4 w-4 text-gray-500 z-10" />
-                </div>
-                <select
-                  id="protocol"
-                  name="protocol"
-                  className="block w-full rounded-md border-0 py-2.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-medical-blue sm:text-sm sm:leading-6 bg-white"
-                >
-                  <option>MQTT Transport</option>
-                  <option>WebSocket Direct</option>
-                </select>
-              </div>
-            </div>
-            
           </div>
           
           <div className="mt-8 flex items-center justify-end border-t border-gray-100 pt-6 gap-x-4">
@@ -80,9 +108,10 @@ export function AddDevice() {
             </button>
             <button
               type="submit"
+              disabled={isSubmitting}
               className="rounded-md bg-medical-blue px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-medical-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-medical-blue"
             >
-              Verify & Register
+              {isSubmitting ? 'Registering...' : 'Verify & Register'}
             </button>
           </div>
         </form>

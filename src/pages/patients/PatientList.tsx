@@ -1,18 +1,22 @@
 import { useEffect, useState } from 'react';
 import { Plus, User, Search } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { DataTable } from '../../components/DataTable';
 import type { Column } from '../../components/DataTable';
-import { mockServices } from '../../services/mock';
+import { deletePatient, getPatients } from '../../services/patientService';
 import type { Patient } from '../../types';
+import { useToast } from '../../components/Toast';
 
 export function PatientList() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [query, setQuery] = useState('');
+  const { addToast } = useToast();
 
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const data = await mockServices.getPatients();
+        const data = await getPatients();
         setPatients(data);
       } catch (error) {
         console.error("Failed to load patients", error);
@@ -22,6 +26,18 @@ export function PatientList() {
     };
     fetchPatients();
   }, []);
+
+  const handleDelete = async (patientId: string) => {
+    if (!window.confirm('Delete this patient? This cannot be undone.')) return;
+    try {
+      await deletePatient(patientId);
+      setPatients((prev) => prev.filter((item) => item.id !== patientId));
+      addToast('Patient deleted.', 'success');
+    } catch (error) {
+      console.error('Failed to delete patient', error);
+      addToast('Failed to delete patient.', 'error');
+    }
+  };
 
   const columns: Column<Patient>[] = [
     {
@@ -41,13 +57,31 @@ export function PatientList() {
     { header: 'Guardian', accessorKey: 'guardianName', className: 'hidden sm:table-cell' },
     {
       header: 'Actions',
-      cell: () => (
-        <button className="text-medical-blue hover:text-medical-blue-dark font-medium text-sm">
-          View Profile
-        </button>
+      cell: (patient) => (
+        <div className="flex items-center gap-3">
+          <button className="text-medical-blue hover:text-medical-blue-dark font-medium text-sm">
+            View Profile
+          </button>
+          <button
+            onClick={() => handleDelete(patient.id)}
+            className="text-red-600 hover:text-red-700 font-medium text-sm"
+          >
+            Delete
+          </button>
+        </div>
       ),
     }
   ];
+
+  const filteredPatients = patients.filter((patient) => {
+    if (!query.trim()) return true;
+    const term = query.toLowerCase();
+    return (
+      patient.name.toLowerCase().includes(term) ||
+      patient.guardianName.toLowerCase().includes(term) ||
+      patient.id.toLowerCase().includes(term)
+    );
+  });
 
   return (
     <div className="space-y-6">
@@ -59,10 +93,13 @@ export function PatientList() {
           <p className="mt-1 text-sm text-gray-500">Manage patient records and clinical information.</p>
         </div>
         <div className="mt-4 flex sm:mt-0 sm:ml-4">
-          <button type="button" className="inline-flex items-center rounded-md bg-medical-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-medical-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-medical-blue">
+          <Link
+            to="/patients/new"
+            className="inline-flex items-center rounded-md bg-medical-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-medical-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-medical-blue"
+          >
             <Plus className="-ml-0.5 mr-1.5 h-4 w-4" aria-hidden="true" />
             Add New Patient
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -75,6 +112,8 @@ export function PatientList() {
             type="text"
             className="block w-full rounded-md border-0 py-2 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-medical-blue sm:text-sm sm:leading-6"
             placeholder="Search patients by name or ID..."
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
           />
         </div>
       </div>
@@ -86,7 +125,7 @@ export function PatientList() {
           </div>
         </div>
       ) : (
-        <DataTable data={patients} columns={columns} keyExtractor={(item) => item.id} />
+        <DataTable data={filteredPatients} columns={columns} keyExtractor={(item) => item.id} />
       )}
     </div>
   );

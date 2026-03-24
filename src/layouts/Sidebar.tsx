@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import {
   Activity,
@@ -9,8 +9,10 @@ import {
   Sliders,
   UserPlus,
   Settings,
-  LogOut
+  LogOut,
+  Shield
 } from 'lucide-react';
+import { logout } from '../services/authService';
 
 const navigationGroups = [
   {
@@ -45,19 +47,34 @@ const navigationGroups = [
   {
     name: 'Settings',
     items: [
-      { name: 'Account', href: '#', icon: Settings },
+      { name: 'Account', href: '/settings/account', icon: Settings },
       { name: 'Logout', href: '/login', icon: LogOut },
+    ],
+  },
+  {
+    name: 'Admin',
+    items: [
+      { name: 'Admin Console', href: '/admin', icon: Shield },
     ],
   },
 ];
 
-export function Sidebar() {
+export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      navigate('/login');
+    }
+  };
 
   return (
     <div className="flex h-[100vh] w-64 flex-col border-r bg-white overflow-hidden pb-12 z-50">
       {/* Brand */}
-      <div className="flex flex-shrink-0 items-center gap-3 p-5 border-b bg-white">
+      <div className="flex h-16 flex-shrink-0 items-center gap-3 px-5 border-b bg-white">
         <img src={logo} alt="Logo" className="h-10 w-10 object-contain" />
         <div className="flex flex-col">
           <span className="text-xl font-bold tracking-tight text-medical-blue leading-none mb-1">
@@ -80,11 +97,24 @@ export function Sidebar() {
             </h3>
             <div className="space-y-1">
               {group.items.map((item) => {
-                const isActive = location.pathname.startsWith(item.href) && item.href !== '#';
+                const isActive = item.href !== '#' && location.pathname === item.href;
+                if (item.name === 'Logout') {
+                  return (
+                    <button
+                      key={item.name}
+                      onClick={handleLogout}
+                      className="group flex w-full items-center rounded-md px-3 py-2 text-sm font-medium transition-colors text-gray-700 hover:bg-gray-50 hover:text-medical-blue"
+                    >
+                      <item.icon className="mr-3 h-5 w-5 shrink-0 text-gray-400 group-hover:text-medical-blue" />
+                      {item.name}
+                    </button>
+                  );
+                }
                 return (
                   <Link
                     key={item.name}
                     to={item.href}
+                    onClick={onNavigate}
                     className={`
                       group flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors
                       ${isActive
@@ -109,10 +139,12 @@ export function Sidebar() {
       </nav>
 
       {/* Footer / User short info */}
-      <div className="flex-shrink-0 border-t p-4 text-xs text-gray-500 text-center bg-gray-50/50 mt-auto">
-        &copy; 2026 DENTO SMART™
-        <br />
-        Smart Dental Anxiety Monitoring System
+      <div className="flex h-20 flex-shrink-0 items-center justify-center border-t px-4 text-[11px] text-gray-500 text-center bg-gray-50/50 mt-auto leading-tight">
+        <div>
+          &copy; 2026 DENTO SMART TM
+          <br />
+          Smart Dental Anxiety Monitoring System
+        </div>
       </div>
     </div>
   );

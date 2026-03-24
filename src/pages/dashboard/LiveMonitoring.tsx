@@ -1,19 +1,200 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, MonitorCheck, Baby, History } from 'lucide-react';
 import { MetricCard } from '../../components/Card';
 import { MultiSignalChart } from '../../components/MultiSignalChart';
 import { SessionRightPanel } from '../../components/SessionRightPanel';
 import { SessionControlBar } from '../../components/SessionControlBar';
 import { useRealtimeVitals } from '../../hooks/useRealtimeVitals';
+import { getDevices } from '../../services/deviceService';
+import { getPatients } from '../../services/patientService';
+import { startSession, stopSession } from '../../services/sessionService';
+import { createEventMarker, getEventMarkers } from '../../services/eventMarkerService';
+import type { Device, EventMarker, Patient, Session } from '../../types';
+import { Link } from 'react-router-dom';
 
 export function LiveMonitoring() {
   const [isActive, setIsActive] = useState(true);
-  
-  // Realtime simulated data bounded logic
-  const { data, latestData, addMarker } = useRealtimeVitals(isActive);
+  const [session, setSession] = useState<Session | null>(null);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [selectedPatientId, setSelectedPatientId] = useState('');
+  const [selectedDeviceId, setSelectedDeviceId] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [duration, setDuration] = useState('00:00:00');
+  const [markers, setMarkers] = useState<EventMarker[]>([]);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const runningSinceRef = useRef<number | null>(null);
 
-  // Compute a mock session duration for display
-  const [duration] = useState('14:22');
+  const selectedPatient = useMemo(
+    () => patients.find((patient) => patient.id === selectedPatientId) || null,
+    [patients, selectedPatientId]
+  );
+  const selectedDevice = useMemo(
+    () => devices.find((device) => device.deviceId === selectedDeviceId) || null,
+    [devices, selectedDeviceId]
+  );
+
+  const { data, latestData } = useRealtimeVitals(isActive, session?.id);
+
+  const activeMarker = useMemo(() => {
+    if (markers.length === 0) return null;
+    return markers[markers.length - 1].marker_type;
+  }, [markers]);
+
+  const activePhase = useMemo(() => {
+    if (!activeMarker) return null;
+    if (activeMarker === 'Baseline') return 'Baseline';
+    if (activeMarker === 'Recovery') return 'Recovery';
+    return 'Intervention';
+  }, [activeMarker]);
+
+  useEffect(() => {
+    let isMounted = true;
+    Promise.all([getPatients(), getDevices()])
+      .then(([patientList, deviceList]) => {
+        if (!isMounted) return;
+        setPatients(patientList);
+        setDevices(deviceList);
+        if (patientList.length > 0) {
+          setSelectedPatientId(patientList[0].id);
+        }
+        if (deviceList.length > 0) {
+          setSelectedDeviceId(deviceList[0].deviceId);
+        }
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setError('Failed to load patients or devices.');
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!session) return;
+    let isMounted = true;
+    const refresh = async () => {
+      try {
+        const deviceList = await getDevices();
+        if (!isMounted) return;
+        setDevices(deviceList);
+        if (!selectedDeviceId && deviceList.length > 0) {
+          setSelectedDeviceId(deviceList[0].deviceId);
+        }
+      } catch {
+        // ignore refresh errors
+      }
+    };
+    const timer = window.setInterval(refresh, 8000);
+    return () => {
+      isMounted = false;
+      window.clearInterval(timer);
+    };
+  }, [session?.id, selectedDeviceId]);
+
+  useEffect(() => {
+    if (!session) {
+      setMarkers([]);
+      return;
+    }
+    let isMounted = true;
+    getEventMarkers(session.id)
+      .then((items) => {
+        if (!isMounted) return;
+        setMarkers(items);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setMarkers([]);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [session?.id]);
+
+  useEffect(() => {
+    if (!session) {
+      runningSinceRef.current = null;
+      setElapsedMs(0);
+      setDuration('00:00:00');
+      return;
+    }
+    setElapsedMs(0);
+    runningSinceRef.current = isActive ? Date.now() : null;
+  }, [session?.id]);
+
+  useEffect(() => {
+    if (!session) return;
+    if (isActive) {
+      if (!runningSinceRef.current) {
+        runningSinceRef.current = Date.now();
+      }
+    } else if (runningSinceRef.current) {
+      const delta = Date.now() - runningSinceRef.current;
+      runningSinceRef.current = null;
+      setElapsedMs((prev) => prev + delta);
+    }
+  }, [isActive, session?.id]);
+
+  useEffect(() => {
+    if (!session) return;
+    const tick = () => {
+      const base = elapsedMs + (runningSinceRef.current ? Date.now() - runningSinceRef.current : 0);
+      const totalSeconds = Math.floor(base / 1000);
+      const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+      const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+      const seconds = String(totalSeconds % 60).padStart(2, '0');
+      setDuration(`${hours}:${minutes}:${seconds}`);
+    };
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [elapsedMs, session?.id]);
+
+  const handleStartSession = async () => {
+    setError(null);
+    if (!selectedPatient || !selectedDevice) {
+      setError('Select a patient and device before starting a session.');
+      return;
+    }
+    try {
+      const created = await startSession({
+        patientId: selectedPatient.id,
+        patientName: selectedPatient.name,
+        deviceId: selectedDevice.deviceId,
+      });
+      setSession(created);
+      setIsActive(true);
+    } catch {
+      setError('Failed to start session. Please try again.');
+    }
+  };
+
+  const handleEndSession = async () => {
+    if (!session) return;
+    setError(null);
+    try {
+      await stopSession(session.id);
+      setSession(null);
+      setIsActive(false);
+    } catch {
+      setError('Failed to stop session.');
+    }
+  };
+
+  const handleAddMarker = async (type: string) => {
+    if (!session) {
+      setError('Start a session before adding event markers.');
+      return;
+    }
+    try {
+      const created = await createEventMarker(session.id, { marker_type: type });
+      setMarkers((prev) => [...prev, created]);
+    } catch {
+      setError('Failed to add event marker.');
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-8rem)] pb-24 space-y-6">
@@ -23,26 +204,84 @@ export function LiveMonitoring() {
         <div className="flex-1">
           <label className="block text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-2">Select Patient</label>
           <div className="relative">
-            <select className="w-full appearance-none bg-gray-50 border border-gray-200 rounded-lg py-2.5 px-4 text-sm font-medium focus:ring-medical-blue focus:border-medical-blue outline-none">
-              <option>P-104 (Emma Wilson)</option>
-              <option>P-105 (Noah Miller)</option>
-              <option>P-106 (Olivia Davis)</option>
+            <select
+              className="w-full appearance-none bg-gray-50 border border-gray-200 rounded-lg py-2.5 px-4 text-sm font-medium focus:ring-medical-blue focus:border-medical-blue outline-none"
+              value={selectedPatientId}
+              onChange={(event) => setSelectedPatientId(event.target.value)}
+            >
+              {patients.length === 0 ? (
+                <option value="">No patients registered</option>
+              ) : (
+                patients.map((patient) => (
+                  <option key={patient.id} value={patient.id}>
+                    {patient.name}
+                  </option>
+                ))
+              )}
             </select>
           </div>
         </div>
         <div className="flex-1">
           <label className="block text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-2">Connect Device</label>
           <div className="relative">
-            <select className="w-full appearance-none bg-gray-50 border border-gray-200 rounded-lg py-2.5 px-4 text-sm font-medium focus:ring-medical-blue focus:border-medical-blue outline-none">
-              <option>DENTO-HUB-001 (Connected)</option>
-              <option>DENTO-HUB-002 (Available)</option>
+            <select
+              className="w-full appearance-none bg-gray-50 border border-gray-200 rounded-lg py-2.5 px-4 text-sm font-medium focus:ring-medical-blue focus:border-medical-blue outline-none"
+              value={selectedDeviceId}
+              onChange={(event) => setSelectedDeviceId(event.target.value)}
+            >
+              {devices.length === 0 ? (
+                <option value="">No devices registered</option>
+              ) : (
+                devices.map((device) => (
+                  <option key={device.id} value={device.deviceId}>
+                    {device.deviceId} ({device.status})
+                  </option>
+                ))
+              )}
             </select>
           </div>
         </div>
-        <div className="flex items-center gap-2 px-4 py-3 bg-green-50 text-green-600 rounded-lg border border-green-100">
-          <MonitorCheck className="w-4 h-4" />
-          <span className="text-xs font-bold">System Ready</span>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={handleStartSession}
+            className="rounded-lg bg-medical-blue px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-medical-blue-dark"
+          >
+            Start Session
+          </button>
+          <div
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border ${
+              session || selectedDevice?.status === 'online'
+                ? 'bg-green-50 text-green-600 border-green-100'
+                : 'bg-gray-50 text-gray-500 border-gray-200'
+            }`}
+          >
+            <MonitorCheck className="w-4 h-4" />
+            <span className="text-xs font-bold">
+              {session
+                ? 'Session Active'
+                : selectedDevice
+                  ? selectedDevice.status === 'online'
+                    ? 'Device Online'
+                    : 'Device Offline'
+                  : 'Ready'}
+            </span>
+          </div>
         </div>
+        {error ? <div className="w-full text-sm text-red-600">{error}</div> : null}
+        {patients.length === 0 || devices.length === 0 ? (
+          <div className="w-full text-xs text-gray-500">
+            {patients.length === 0 ? (
+              <span>
+                Add a patient in <Link to="/patients/new" className="text-medical-blue hover:underline">Patient Registration</Link>.
+              </span>
+            ) : null}
+            {devices.length === 0 ? (
+              <span className="ml-2">
+                Register a device in <Link to="/dashboard/device-management" className="text-medical-blue hover:underline">Device Management</Link>.
+              </span>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-12 gap-6 items-start">
@@ -58,11 +297,13 @@ export function LiveMonitoring() {
               <div className="grid grid-cols-3 gap-x-12 gap-y-1">
                 <div>
                   <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Patient ID</p>
-                  <p className="font-bold text-lg text-gray-900">P-104</p>
+                  <p className="font-bold text-lg text-gray-900">{selectedPatient ? selectedPatient.id : 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Age / Gender</p>
-                  <p className="font-bold text-lg text-gray-700">10Y • Female</p>
+                  <p className="font-bold text-lg text-gray-700">
+                    {selectedPatient ? `${selectedPatient.age}Y • ${selectedPatient.gender}` : 'N/A'}
+                  </p>
                 </div>
                 <div>
                   <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Session Time</p>
@@ -71,16 +312,16 @@ export function LiveMonitoring() {
                 <div className="col-span-3">
                   <div className="flex items-center gap-4 mt-2">
                     <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-gray-300"></span>
-                      <span className="text-xs text-gray-500 font-medium">Baseline</span>
+                      <span className={`w-2 h-2 rounded-full ${activePhase === 'Baseline' ? 'bg-medical-blue' : 'bg-gray-300'}`}></span>
+                      <span className={`text-xs font-medium ${activePhase === 'Baseline' ? 'text-medical-blue font-bold' : 'text-gray-500'}`}>Baseline</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-medical-blue"></span>
-                      <span className="text-xs font-bold text-medical-blue">Intervention</span>
+                      <span className={`w-2 h-2 rounded-full ${activePhase === 'Intervention' ? 'bg-medical-blue' : 'bg-gray-300'}`}></span>
+                      <span className={`text-xs font-medium ${activePhase === 'Intervention' ? 'text-medical-blue font-bold' : 'text-gray-500'}`}>Intervention</span>
                     </div>
                     <div className="flex items-center gap-2 text-gray-400">
-                      <span className="w-2 h-2 rounded-full border border-gray-300"></span>
-                      <span className="text-xs font-medium">Recovery</span>
+                      <span className={`w-2 h-2 rounded-full ${activePhase === 'Recovery' ? 'bg-medical-blue' : 'border border-gray-300'}`}></span>
+                      <span className={`text-xs font-medium ${activePhase === 'Recovery' ? 'text-medical-blue font-bold' : 'text-gray-500'}`}>Recovery</span>
                     </div>
                   </div>
                 </div>
@@ -99,18 +340,18 @@ export function LiveMonitoring() {
             {/* GSR */}
             <MetricCard
               title="GSR (μS)"
-              value={latestData.gsr}
-              trendExtra={<span className="text-[10px] bg-green-100 text-green-600 px-1.5 py-0.5 rounded font-bold">+0.5%</span>}
+              value={latestData.gsr.toFixed(2)}
+              trendExtra={<span className="text-[10px] bg-green-100 text-green-600 px-1.5 py-0.5 rounded font-bold">LIVE</span>}
             >
-              <div className="h-10 w-full flex items-end gap-0.5 px-0.5">
-                <div className="w-full h-[60%] bg-blue-100 rounded-t-sm"></div>
-                <div className="w-full h-[65%] bg-blue-100 rounded-t-sm"></div>
-                <div className="w-full h-[55%] bg-blue-100 rounded-t-sm"></div>
-                <div className="w-full h-[70%] bg-blue-100 rounded-t-sm"></div>
-                <div className="w-full h-[75%] bg-blue-200 rounded-t-sm"></div>
-                <div className="w-full h-[80%] bg-medical-blue rounded-t-sm"></div>
-                <div className="w-full h-[85%] bg-medical-blue rounded-t-sm transition-all duration-300"></div>
+              <div className="h-10 w-full flex items-center">
+                <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-medical-blue rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(100, Math.max(0, (latestData.gsr / 5) * 100))}%` }}
+                  ></div>
+                </div>
               </div>
+              <div className="mt-2 text-[10px] text-gray-400">Range 0 - 5 μS</div>
             </MetricCard>
 
             {/* Heart Rate */}
@@ -132,13 +373,16 @@ export function LiveMonitoring() {
             {/* Body Temp */}
             <MetricCard
               title="BODY TEMP"
-              value={latestData.temperature}
+              value={latestData.temperature.toFixed(1)}
               unit="°C"
               trendExtra={<span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-bold">{(latestData.temperature * 9/5 + 32).toFixed(1)}°F</span>}
             >
                <div className="h-10 w-full flex items-center">
-                <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                  <div className="w-2/3 h-full bg-medical-blue rounded-full"></div>
+                <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-medical-blue rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(100, Math.max(0, ((latestData.temperature - 34) / 6) * 100))}%` }}
+                  ></div>
                 </div>
               </div>
             </MetricCard>
@@ -154,25 +398,37 @@ export function LiveMonitoring() {
                 </div>
               }
             >
-              <div className="flex gap-2 h-10 items-center">
-                <div className="flex-1 h-2 bg-gray-100 rounded"></div>
-                <div className="flex-1 h-2 bg-medical-blue rounded"></div>
-                <div className="flex-1 h-2 bg-gray-100 rounded"></div>
+              <div className="h-10 w-full flex items-center">
+                <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-medical-blue rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(100, Math.max(0, ((latestData.systolic - 80) / 80) * 100))}%` }}
+                  ></div>
+                </div>
               </div>
             </MetricCard>
           </div>
 
           {/* Combined Signal Chart */}
           <div className="w-full h-[350px]">
-            <MultiSignalChart data={data} height="h-full" />
+            <MultiSignalChart
+              data={data}
+              markers={markers.map((marker) => ({
+                timestamp: Date.parse(marker.created_at),
+                type: marker.marker_type,
+              }))}
+              height="h-full"
+            />
           </div>
         </div>
 
         {/* Right Insights and Marker Panel */}
         <div className="col-span-12 lg:col-span-3 pb-6">
           <SessionRightPanel 
-            onAddMarker={addMarker} 
+            onAddMarker={handleAddMarker} 
             latestData={latestData} 
+            markers={markers}
+            activeMarker={activeMarker}
           />
         </div>
       </div>
@@ -182,6 +438,7 @@ export function LiveMonitoring() {
         isActive={isActive} 
         onTogglePlay={() => setIsActive(!isActive)} 
         elapsedTime={duration}
+        onEnd={session ? handleEndSession : undefined}
       />
     </div>
   );

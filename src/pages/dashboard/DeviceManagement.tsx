@@ -1,18 +1,21 @@
 import { useEffect, useState } from 'react';
 import { Plus, Server, Activity, AlertCircle, RefreshCw } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { DataTable } from '../../components/DataTable';
 import type { Column } from '../../components/DataTable';
-import { mockServices } from '../../services/mock';
+import { deleteDevice, getDevices } from '../../services/deviceService';
 import type { Device } from '../../types';
+import { useToast } from '../../components/Toast';
 
 export function DeviceManagement() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { addToast } = useToast();
 
   useEffect(() => {
     const fetchDevices = async () => {
       try {
-        const data = await mockServices.getDevices();
+        const data = await getDevices();
         setDevices(data);
       } catch (error) {
         console.error("Failed to load devices", error);
@@ -21,7 +24,21 @@ export function DeviceManagement() {
       }
     };
     fetchDevices();
+    const timer = window.setInterval(fetchDevices, 8000);
+    return () => window.clearInterval(timer);
   }, []);
+
+  const handleDelete = async (deviceId: string) => {
+    if (!window.confirm('Delete this device? This cannot be undone.')) return;
+    try {
+      await deleteDevice(deviceId);
+      setDevices((prev) => prev.filter((item) => item.deviceId !== deviceId));
+      addToast('Device deleted.', 'success');
+    } catch (error) {
+      console.error('Failed to delete device', error);
+      addToast('Failed to delete device.', 'error');
+    }
+  };
 
   const columns: Column<Device>[] = [
     {
@@ -84,10 +101,18 @@ export function DeviceManagement() {
     },
     {
       header: 'Actions',
-      cell: () => (
-        <button className="text-medical-blue hover:text-medical-blue-dark font-medium text-sm">
-          Settings
-        </button>
+      cell: (device) => (
+        <div className="flex items-center gap-3">
+          <button className="text-medical-blue hover:text-medical-blue-dark font-medium text-sm">
+            Settings
+          </button>
+          <button
+            onClick={() => handleDelete(device.deviceId)}
+            className="text-red-600 hover:text-red-700 font-medium text-sm"
+          >
+            Delete
+          </button>
+        </div>
       ),
     }
   ];
@@ -102,10 +127,13 @@ export function DeviceManagement() {
           <p className="mt-1 text-sm text-gray-500">Monitor and manage connected IoT sensor devices.</p>
         </div>
         <div className="mt-4 flex sm:mt-0 sm:ml-4">
-          <button type="button" className="inline-flex items-center rounded-md bg-medical-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-medical-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-medical-blue">
+          <Link
+            to="/devices/new"
+            className="inline-flex items-center rounded-md bg-medical-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-medical-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-medical-blue"
+          >
             <Plus className="-ml-0.5 mr-1.5 h-4 w-4" aria-hidden="true" />
             Register Device
-          </button>
+          </Link>
         </div>
       </div>
 
