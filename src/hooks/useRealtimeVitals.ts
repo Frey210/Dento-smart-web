@@ -4,7 +4,6 @@ import { apiRequest } from '../services/apiClient';
 
 const defaultHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 const WS_BASE = import.meta.env.VITE_WS_BASE_URL || `ws://${defaultHost}:8000`;
-const API_BASE = import.meta.env.VITE_API_BASE_URL || `http://${defaultHost}:8000/api`;
 
 export function useRealtimeVitals(isActive: boolean = true, sessionId?: string) {
   const [data, setData] = useState<SensorData[]>([]);

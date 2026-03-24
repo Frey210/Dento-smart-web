@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import { AuthLayout } from './layouts/AuthLayout';
 import { PageLayout } from './layouts/PageLayout';
 
@@ -26,7 +27,7 @@ import { AdminPanel } from './pages/admin/AdminPanel';
 import { AccountSettings } from './pages/settings/Account';
 import { ToastProvider } from './components/Toast';
 
-function RequireAuth({ children }: { children: JSX.Element }) {
+function RequireAuth({ children }: { children: ReactNode }) {
   const location = useLocation();
   if (!hasSession()) {
     return <Navigate to="/login" state={{ from: location }} replace />;
@@ -34,7 +35,7 @@ function RequireAuth({ children }: { children: JSX.Element }) {
   return children;
 }
 
-function RedirectIfAuth({ children }: { children: JSX.Element }) {
+function RedirectIfAuth({ children }: { children: ReactNode }) {
   if (hasSession()) {
     return <Navigate to="/dashboard/live-monitoring" replace />;
   }
