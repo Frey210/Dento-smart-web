@@ -21,6 +21,9 @@ export function PatientSessions() {
   const [rowsError, setRowsError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed'>('all');
+  const [patientFilter, setPatientFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -164,6 +167,17 @@ export function PatientSessions() {
     }
   ];
 
+  const patientOptions = Array.from(
+    new Set(sessions.map((session) => session.patientName).filter(Boolean))
+  ).sort();
+
+  const toDateValue = (value?: string | null) => {
+    if (!value) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed;
+  };
+
   const filteredSessions = sessions.filter((session) => {
     const term = query.trim().toLowerCase();
     const matchesQuery =
@@ -171,7 +185,20 @@ export function PatientSessions() {
       session.id.toLowerCase().includes(term) ||
       (session.patientName ?? '').toLowerCase().includes(term);
     const matchesStatus = statusFilter === 'all' || session.status === statusFilter;
-    return matchesQuery && matchesStatus;
+    const matchesPatient =
+      patientFilter === 'all' || (session.patientName ?? '') === patientFilter;
+    const sessionDate =
+      toDateValue(session.started_at) ||
+      toDateValue(session.date) ||
+      toDateValue(session.ended_at);
+    const fromDate = dateFrom ? new Date(`${dateFrom}T00:00:00`) : null;
+    const toDate = dateTo ? new Date(`${dateTo}T23:59:59`) : null;
+    const matchesDate =
+      (!fromDate && !toDate) ||
+      (sessionDate &&
+        (!fromDate || sessionDate >= fromDate) &&
+        (!toDate || sessionDate <= toDate));
+    return matchesQuery && matchesStatus && matchesPatient && matchesDate;
   });
 
   return (
@@ -199,7 +226,7 @@ export function PatientSessions() {
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:space-x-4 sm:gap-0">
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
         <div className="relative flex-1">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
             <Search className="h-5 w-5 text-gray-400" aria-hidden="true" />
@@ -210,6 +237,33 @@ export function PatientSessions() {
             placeholder="Search sessions by patient name or ID..."
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+          />
+        </div>
+        <select
+          className="w-full rounded-md border-0 bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-medical-blue sm:w-auto"
+          value={patientFilter}
+          onChange={(event) => setPatientFilter(event.target.value)}
+        >
+          <option value="all">All Patients</option>
+          {patientOptions.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <input
+            type="date"
+            className="w-full rounded-md border-0 bg-white px-3 py-2 text-sm text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-medical-blue sm:w-auto"
+            value={dateFrom}
+            onChange={(event) => setDateFrom(event.target.value)}
+          />
+          <span className="hidden text-xs text-gray-400 sm:inline">to</span>
+          <input
+            type="date"
+            className="w-full rounded-md border-0 bg-white px-3 py-2 text-sm text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-medical-blue sm:w-auto"
+            value={dateTo}
+            onChange={(event) => setDateTo(event.target.value)}
           />
         </div>
         <button
