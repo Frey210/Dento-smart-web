@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { AuthLayout } from './layouts/AuthLayout';
 import { PageLayout } from './layouts/PageLayout';
 
@@ -26,6 +27,7 @@ import { hasSession } from './services/authSession';
 import { AdminPanel } from './pages/admin/AdminPanel';
 import { AccountSettings } from './pages/settings/Account';
 import { ToastProvider } from './components/Toast';
+import { SplashScreen } from './components/SplashScreen';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const location = useLocation();
@@ -43,6 +45,17 @@ function RedirectIfAuth({ children }: { children: ReactNode }) {
 }
 
 function App() {
+  const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setShowSplash(false), 1400);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  if (showSplash) {
+    return <SplashScreen />;
+  }
+
   return (
     <BrowserRouter>
       <ToastProvider>
