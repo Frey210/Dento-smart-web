@@ -151,3 +151,5 @@ If you add backend APIs later, update environment variables and service URLs in 
 ## License
 
 Proprietary. All rights reserved.
+
+CI test marker (frontend).
