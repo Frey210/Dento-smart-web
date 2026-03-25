@@ -119,17 +119,17 @@ export function DeviceManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="sm:flex sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
             Device Management
           </h2>
           <p className="mt-1 text-sm text-gray-500">Monitor and manage connected IoT sensor devices.</p>
         </div>
-        <div className="mt-4 flex sm:mt-0 sm:ml-4">
+        <div className="flex sm:mt-0 sm:ml-4">
           <Link
             to="/devices/new"
-            className="inline-flex items-center rounded-md bg-medical-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-medical-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-medical-blue"
+            className="inline-flex w-full items-center justify-center rounded-md bg-medical-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-medical-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-medical-blue sm:w-auto"
           >
             <Plus className="-ml-0.5 mr-1.5 h-4 w-4" aria-hidden="true" />
             Register Device

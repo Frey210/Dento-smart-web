@@ -16,8 +16,9 @@ interface DataTableProps<T> {
 
 export function DataTable<T>({ data, columns, keyExtractor, onRowClick }: DataTableProps<T>) {
   return (
-    <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-      <table className="min-w-full divide-y divide-gray-300">
+    <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-300">
         <thead className="bg-gray-50">
           <tr>
             {columns.map((col, idx) => (
@@ -56,7 +57,8 @@ export function DataTable<T>({ data, columns, keyExtractor, onRowClick }: DataTa
             </tr>
           )}
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
   );
 }
