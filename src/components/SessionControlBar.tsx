@@ -12,7 +12,7 @@ export function SessionControlBar({
   onEnd?: () => void;
 }) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 h-20 border-t border-gray-200 bg-white px-4 sm:px-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40 lg:left-64">
+    <div className="fixed bottom-16 left-0 right-0 h-20 border-t border-gray-200 bg-white px-4 sm:px-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40 sm:bottom-0 lg:left-64">
       <div className="flex h-full flex-col items-start justify-center gap-3 mx-auto max-w-7xl sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center space-x-6">
           <div className="flex items-center">

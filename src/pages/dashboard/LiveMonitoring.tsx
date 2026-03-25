@@ -197,7 +197,7 @@ export function LiveMonitoring() {
   };
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-8rem)] pb-24 space-y-6">
+    <div className="flex flex-col min-h-[calc(100vh-8rem)] pb-32 sm:pb-24 space-y-6">
       
       {/* Pre-session Setup / Patient Info Header Area */}
       <div className="bg-white rounded-xl p-6 shadow-sm border border-medical-blue/20 flex flex-wrap items-end gap-6">
@@ -289,12 +289,12 @@ export function LiveMonitoring() {
         <div className="col-span-12 lg:col-span-9 space-y-6">
           
           {/* Patient Info Card */}
-          <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <div className="w-16 h-16 rounded-xl bg-medical-blue/10 flex items-center justify-center text-medical-blue">
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex w-full items-start gap-4 sm:gap-6">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-medical-blue/10 flex items-center justify-center text-medical-blue">
                 <Baby className="w-8 h-8" />
               </div>
-              <div className="grid grid-cols-3 gap-x-12 gap-y-1">
+              <div className="grid w-full grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-12">
                 <div>
                   <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Patient ID</p>
                   <p className="font-bold text-lg text-gray-900">{selectedPatient ? selectedPatient.id : 'N/A'}</p>
@@ -305,12 +305,12 @@ export function LiveMonitoring() {
                     {selectedPatient ? `${selectedPatient.age}Y • ${selectedPatient.gender}` : 'N/A'}
                   </p>
                 </div>
-                <div>
+                <div className="sm:col-span-2 lg:col-span-1">
                   <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Session Time</p>
                   <p className="font-bold text-lg text-medical-blue">{duration}</p>
                 </div>
-                <div className="col-span-3">
-                  <div className="flex items-center gap-4 mt-2">
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <div className="flex flex-wrap items-center gap-4 mt-2">
                     <div className="flex items-center gap-2">
                       <span className={`w-2 h-2 rounded-full ${activePhase === 'Baseline' ? 'bg-medical-blue' : 'bg-gray-300'}`}></span>
                       <span className={`text-xs font-medium ${activePhase === 'Baseline' ? 'text-medical-blue font-bold' : 'text-gray-500'}`}>Baseline</span>
@@ -327,8 +327,8 @@ export function LiveMonitoring() {
                 </div>
               </div>
             </div>
-            <div className="text-right">
-              <button className="text-medical-blue text-sm font-bold flex items-center gap-1 hover:underline">
+            <div className="w-full lg:w-auto">
+              <button className="w-full sm:w-auto text-medical-blue text-sm font-bold flex items-center justify-center gap-1 hover:underline">
                 <History className="w-5 h-5" />
                 View History
               </button>
