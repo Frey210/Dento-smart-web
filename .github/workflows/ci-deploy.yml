@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,24 +19,14 @@ jobs:
         run: npm run build
 
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: build
     if: github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v4
-      - name: Configure SSH
-        env:
-          PI_SSH_KEY: ${{ secrets.PI_SSH_KEY }}
+      - name: Deploy on Raspberry Pi
         run: |
-          mkdir -p ~/.ssh
-          echo "$PI_SSH_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-      - name: Deploy to Raspberry Pi
-        env:
-          PI_HOST: ${{ secrets.PI_HOST }}
-          PI_USER: ${{ secrets.PI_USER }}
-        run: |
-          ssh -o StrictHostKeyChecking=no \
-            -i ~/.ssh/id_ed25519 \
-            $PI_USER@$PI_HOST \
-            "set -e; cd ~/dento-deploy/Dento-smart-web && git pull; cd ~/dento-deploy/Dento-smart-backend/deploy/raspi && docker-compose up -d --build frontend"
+          set -e
+          cd ~/dento-deploy/Dento-smart-web
+          git pull
+          cd ~/dento-deploy/Dento-smart-backend/deploy/raspi
+          docker-compose up -d --build frontend
