@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, MonitorCheck, Baby, History } from 'lucide-react';
+import { Activity, MonitorCheck, Baby, History, HeartPulse, Thermometer, Waves } from 'lucide-react';
 import { MetricCard } from '../../components/Card';
 import { MultiSignalChart } from '../../components/MultiSignalChart';
 import { SessionRightPanel } from '../../components/SessionRightPanel';
@@ -341,7 +341,14 @@ export function LiveMonitoring() {
             <MetricCard
               title="GSR (μS)"
               value={latestData.gsr.toFixed(2)}
-              trendExtra={<span className="text-[10px] bg-green-100 text-green-600 px-1.5 py-0.5 rounded font-bold">LIVE</span>}
+              trendExtra={
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-medical-blue/10 text-medical-blue">
+                    <Waves className="h-4 w-4" />
+                  </span>
+                  <span className="text-[10px] bg-green-100 text-green-600 px-1.5 py-0.5 rounded font-bold">LIVE</span>
+                </div>
+              }
             >
               <div className="h-10 w-full flex items-center">
                 <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
@@ -359,7 +366,16 @@ export function LiveMonitoring() {
               title="HEART RATE"
               value={latestData.heart_rate}
               unit="BPM"
-              trendExtra={<span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold uppercase">{latestData.heart_rate > 90 ? 'HIGH' : 'NORMAL'}</span>}
+              trendExtra={
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-600">
+                    <HeartPulse className="h-4 w-4" />
+                  </span>
+                  <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold uppercase">
+                    {latestData.heart_rate > 90 ? 'HIGH' : 'NORMAL'}
+                  </span>
+                </div>
+              }
             >
               <div className="h-10 w-full bg-gray-50 rounded relative overflow-hidden">
                 <div className="absolute inset-0 flex items-center px-1">
@@ -375,7 +391,16 @@ export function LiveMonitoring() {
               title="BODY TEMP"
               value={latestData.temperature.toFixed(1)}
               unit="°C"
-              trendExtra={<span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-bold">{(latestData.temperature * 9/5 + 32).toFixed(1)}°F</span>}
+              trendExtra={
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-amber-50 text-amber-600">
+                    <Thermometer className="h-4 w-4" />
+                  </span>
+                  <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-bold">
+                    {(latestData.temperature * 9/5 + 32).toFixed(1)}°F
+                  </span>
+                </div>
+              }
             >
                <div className="h-10 w-full flex items-center">
                 <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
@@ -392,8 +417,10 @@ export function LiveMonitoring() {
               title="BP (SYS/DIA)"
               value={`${latestData.systolic}/${latestData.diastolic}`}
               trendExtra={
-                <div className="flex items-center gap-1 text-[10px] font-bold text-medical-blue">
-                  <Activity className="w-3 h-3" />
+                <div className="flex items-center gap-2 text-[10px] font-bold text-medical-blue">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-medical-blue/10 text-medical-blue">
+                    <Activity className="h-4 w-4" />
+                  </span>
                   MAP: {Math.round((latestData.systolic + 2 * latestData.diastolic) / 3)}
                 </div>
               }
@@ -443,3 +470,5 @@ export function LiveMonitoring() {
     </div>
   );
 }
+
+
